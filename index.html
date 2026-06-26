@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#1c1a17" />
   <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <link rel="icon" type="image/png" href="/icon-192.png" />
   <title>归砚</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -593,6 +595,23 @@
       color: var(--ink);
     }
 
+    #sendBtn {
+      background: none;
+      border: none;
+      color: var(--ink);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 6px 4px 4px;
+      opacity: 0.5;
+      transition: opacity 0.2s, color 0.2s;
+      align-self: flex-start;
+      line-height: 1;
+      flex-shrink: 0;
+      display: none;
+    }
+    #sendBtn:hover { opacity: 1; }
+    #sendBtn.show { display: inline-block; }
+
     #input {
       flex: 1;
       padding: 6px 0;
@@ -1137,6 +1156,7 @@
       #titleBtn { font-size: 13px; letter-spacing: 2px; }
       #menuBtn, #rememberBtn { width: 24px; height: 24px; font-size: 13px; }
       #input { font-size: 13px; }
+      #sendBtn.show { display: inline-block; }
     }
 
     @media (min-width: 1024px) {
@@ -1194,6 +1214,7 @@
     <div id="inputRow">
       <button id="uploadBtn" onclick="document.getElementById('fileInput').click()" title="上传文件">＋</button>
       <textarea id="input" rows="1" placeholder="说点什么……" autofocus></textarea>
+      <button id="sendBtn" onclick="send()" title="发送">↑</button>
     </div>
     <input type="file" id="fileInput" multiple style="display:none" onchange="handleFileUpload(event)">
     <input type="file" id="avatarAiInput" accept="image/*" style="display:none" onchange="handleAvatarFile('ai', this)">
