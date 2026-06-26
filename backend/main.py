@@ -632,7 +632,10 @@ async def app_icon(size: str):
 async def index():
     html_path = PROJECT_DIR / "index.html"
     if html_path.exists():
-        return HTMLResponse(html_path.read_text(encoding="utf-8"))
+        return HTMLResponse(
+            html_path.read_text(encoding="utf-8"),
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+        )
     raise HTTPException(404)
 
 # 健康检查
