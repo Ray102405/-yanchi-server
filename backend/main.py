@@ -602,6 +602,31 @@ async def call_llm_stream(messages: list[dict]):
 
 # ── 路由 ──────────────────────────────────────────
 
+# PWA 静态资源
+@app.get("/manifest.json")
+async def manifest():
+    path = PROJECT_DIR / "manifest.json"
+    if path.exists():
+        return FileResponse(path, media_type="application/manifest+json")
+    raise HTTPException(404)
+
+@app.get("/sw.js")
+async def service_worker():
+    path = PROJECT_DIR / "sw.js"
+    if path.exists():
+        return FileResponse(path, media_type="application/javascript")
+    raise HTTPException(404)
+
+ICON_SIZES = {"192", "512"}
+@app.get("/icon-{size}.png")
+async def app_icon(size: str):
+    if size not in ICON_SIZES:
+        raise HTTPException(404)
+    path = PROJECT_DIR / f"icon-{size}.png"
+    if path.exists():
+        return FileResponse(path, media_type="image/png")
+    raise HTTPException(404)
+
 # 前端页面
 @app.get("/")
 async def index():

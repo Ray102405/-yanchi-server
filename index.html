@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1c1a17" />
+  <link rel="manifest" href="/manifest.json" />
   <title>归砚</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2523,6 +2525,15 @@ document.getElementById("scrollBottomBtn").addEventListener("click", () => {
   // Click title → timeline
   document.getElementById("titleBtn").addEventListener("click", toggleTimeline);
 })();
+</script>
+
+<!-- PWA 注册 -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js');
+    });
+  }
 </script>
 </body>
 </html>
