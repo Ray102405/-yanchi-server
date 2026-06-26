@@ -4,6 +4,7 @@ title 砚迟 · FastAPI 后端
 
 :: 端口设置（改这里即可，需与 index.html 中的 YANCHI_PORT 保持一致）
 set YANCHI_PORT=2612
+set YANCHI_HOST=0.0.0.0
 
 echo ╔══════════════════════════════════════════╗
 echo ║  砚迟 · Python FastAPI 后端              ║
