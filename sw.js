@@ -1,4 +1,4 @@
-const CACHE = 'guiyan-v1';
+const CACHE = 'guiyan-v2';
 const PRECACHE = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -9,7 +9,12 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(clients.claim());
+  e.waitUntil(
+    clients.claim(),
+    caches.keys().then(keys => Promise.all(
+      keys.filter(k => k !== CACHE).map(k => caches.delete(k))
+    ))
+  );
 });
 
 self.addEventListener('fetch', e => {
