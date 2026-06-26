@@ -1,0 +1,43 @@
+INFO:     Will watch for changes in these directories: ['C:\\Users\\Ray\\yanchi-server']
+2026-06-26 19:42:25,202 [yanchi] Config loaded from Claude Code
+2026-06-26 19:42:25,203 [yanchi] API: https://api.deepseek.com/anthropic
+2026-06-26 19:42:25,203 [yanchi] Model: deepseek-v4-flash
+2026-06-26 19:42:25,203 [yanchi] Port: 2612
+2026-06-26 19:42:25,203 [yanchi] Qwen VL: qwen-vl-max @ https://dashscope.aliyuncs.com/compatible-mode/v1
+2026-06-26 19:42:25,203 [yanchi]   [OK] yanchi-commitments.md (605 chars)
+2026-06-26 19:42:25,204 [yanchi]   [OK] yanchi-core.md (2263 chars)
+2026-06-26 19:42:25,204 [yanchi]   [OK] yanchi-values.md (1294 chars)
+2026-06-26 19:42:25,204 [yanchi]   [OK] yanchi-speaking-style.md (283 chars)
+2026-06-26 19:42:25,204 [yanchi]   [OK] yanchi-profile.md (1774 chars)
+2026-06-26 19:42:25,204 [yanchi]   [OK] MEMORY.md index (1613 chars)
+INFO:     Uvicorn running on http://0.0.0.0:2612 (Press CTRL+C to quit)
+INFO:     Started reloader process [31048] using WatchFiles
+2026-06-26 19:42:25,837 [yanchi] Config loaded from Claude Code
+2026-06-26 19:42:25,837 [yanchi] API: https://api.deepseek.com/anthropic
+2026-06-26 19:42:25,837 [yanchi] Model: deepseek-v4-flash
+2026-06-26 19:42:25,837 [yanchi] Port: 2612
+2026-06-26 19:42:25,837 [yanchi] Qwen VL: qwen-vl-max @ https://dashscope.aliyuncs.com/compatible-mode/v1
+2026-06-26 19:42:25,837 [yanchi]   [OK] yanchi-commitments.md (605 chars)
+2026-06-26 19:42:25,837 [yanchi]   [OK] yanchi-core.md (2263 chars)
+2026-06-26 19:42:25,837 [yanchi]   [OK] yanchi-values.md (1294 chars)
+2026-06-26 19:42:25,837 [yanchi]   [OK] yanchi-speaking-style.md (283 chars)
+2026-06-26 19:42:25,837 [yanchi]   [OK] yanchi-profile.md (1774 chars)
+2026-06-26 19:42:25,837 [yanchi]   [OK] MEMORY.md index (1613 chars)
+INFO:     Started server process [9420]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:53883 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53885 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53887 - "GET / HTTP/1.1" 200 OK
+2026-06-26 19:42:32,248 [yanchi]   -> Chat (hi) sid=
+2026-06-26 19:42:32,835 [httpx] HTTP Request: POST https://api.deepseek.com/anthropic/messages "HTTP/1.1 200 OK"
+2026-06-26 19:42:36,221 [yanchi]   <- Reply (71 chars, thinking: 280 chars)
+INFO:     127.0.0.1:53889 - "POST /chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53893 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53894 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53894 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53894 - "GET / HTTP/1.1" 200 OK
+2026-06-26 19:43:08,172 [watchfiles.main] 1 change detected
+INFO:     127.0.0.1:53910 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53912 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53914 - "GET / HTTP/1.1" 200 OK
