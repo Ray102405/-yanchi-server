@@ -23,28 +23,43 @@ from pydantic import BaseModel
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
 HOME = Path.home()
-MEMORY_DIR = HOME / ".claude/projects/C--Users-Ray/memory/yanchi"
-MEMORY_INDEX = HOME / ".claude/projects/C--Users-Ray/memory/MEMORY.md"
+CLAUDE_CONFIG = HOME / ".claude/settings.json"
+
+# ── 数据目录：环境变量 → 项目本地 → Claude 本地 ─────────
+_env_data = os.environ.get("YANCHI_DATA_DIR")
+if _env_data:
+    MEMORY_DIR = Path(_env_data)
+else:
+    _project_data = PROJECT_DIR / "data"
+    if _project_data.exists():
+        MEMORY_DIR = _project_data
+    else:
+        MEMORY_DIR = HOME / ".claude/projects/C--Users-Ray/memory/yanchi"
+
+MEMORY_INDEX = MEMORY_DIR / "MEMORY.md"
 MEMORY_INDEX_FILE = MEMORY_DIR / "yanchi-memory-index.json"
 MEMORY_ARCHIVE_DIR = MEMORY_DIR / "archive"
-CLAUDE_CONFIG = HOME / ".claude/settings.json"
 
 # ── 日志 ──────────────────────────────────────────
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
 log = logging.getLogger("yanchi")
 
-# ── 读取 DeepSeek API 配置 ────────────────────────
+# ── 读取配置（环境变量优先，本地文件后备）──────────────────
+_CONFIG_DATA = {}
 if CLAUDE_CONFIG.exists():
-    cfg = json.loads(CLAUDE_CONFIG.read_text(encoding="utf-8"))
-    API_KEY = cfg["env"]["ANTHROPIC_AUTH_TOKEN"]
-    BASE_URL = cfg["env"]["ANTHROPIC_BASE_URL"].rstrip("/")
-    API_URL = f"{BASE_URL}/messages"
-    _MODEL_DEFAULT = cfg["env"].get("ANTHROPIC_MODEL", "deepseek-v4-flash")
-    log.info("Config loaded from Claude Code")
-else:
-    raise RuntimeError(f"Config not found at {CLAUDE_CONFIG}")
+    _CONFIG_DATA = json.loads(CLAUDE_CONFIG.read_text(encoding="utf-8")).get("env", {})
+    log.info("Local config file loaded")
 
-PORT = int(os.environ.get("YANCHI_PORT", 2612))
+# ── DeepSeek API ────────────────────────
+API_KEY = os.environ.get("ANTHROPIC_AUTH_TOKEN") or _CONFIG_DATA.get("ANTHROPIC_AUTH_TOKEN", "")
+BASE_URL = (os.environ.get("ANTHROPIC_BASE_URL") or _CONFIG_DATA.get("ANTHROPIC_BASE_URL", "")).rstrip("/")
+_MODEL_DEFAULT = os.environ.get("ANTHROPIC_MODEL") or _CONFIG_DATA.get("ANTHROPIC_MODEL", "deepseek-v4-flash")
+
+if not API_KEY:
+    raise RuntimeError("No API key found. Set ANTHROPIC_AUTH_TOKEN env var.")
+
+API_URL = f"{BASE_URL}/messages"
+PORT = int(os.environ.get("PORT") or os.environ.get("YANCHI_PORT", "2612"))
 
 # 可切换的模型（运行时修改不影响配置文件）
 _current_model = _MODEL_DEFAULT
@@ -54,10 +69,10 @@ log.info(f"API: {BASE_URL}")
 log.info(f"Model: {_current_model}")
 log.info(f"Port: {PORT}")
 
-# ── 读取千问 API 配置（可选，用于图片理解）────────────
-QWEN_API_KEY = cfg["env"].get("QWEN_API_KEY", "")
-QWEN_BASE_URL = cfg["env"].get("QWEN_BASE_URL", "").rstrip("/") or "https://dashscope.aliyuncs.com/compatible-mode/v1"
-QWEN_VL_MODEL = cfg["env"].get("QWEN_VL_MODEL", "qwen-vl-max")
+# ── 千问 API（可选，用于图片理解）────────────────────
+QWEN_API_KEY = os.environ.get("QWEN_API_KEY") or _CONFIG_DATA.get("QWEN_API_KEY", "")
+QWEN_BASE_URL = (os.environ.get("QWEN_BASE_URL") or _CONFIG_DATA.get("QWEN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")).rstrip("/")
+QWEN_VL_MODEL = os.environ.get("QWEN_VL_MODEL") or _CONFIG_DATA.get("QWEN_VL_MODEL", "qwen-vl-max")
 if QWEN_API_KEY:
     log.info(f"Qwen VL: {QWEN_VL_MODEL} @ {QWEN_BASE_URL}")
 else:
@@ -1254,5 +1269,6 @@ async def get_timeline_content(req: TimelineContentRequest):
 # ── 入口 ──────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
-    log.info(f"砚迟 FastAPI 后端 → http://localhost:{PORT}")
-    uvicorn.run(app, host="127.0.0.1", port=PORT)
+    HOST = os.environ.get("YANCHI_HOST", "127.0.0.1")
+    log.info(f"砚迟 FastAPI 后端 → http://{HOST}:{PORT}")
+    uvicorn.run(app, host=HOST, port=PORT)
