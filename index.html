@@ -1092,23 +1092,51 @@
     .sb-item .s-del:hover { opacity: 1; color: var(--rose); }
 
     /* ── Responsive ──────────────────────── */
-    @media (max-width: 480px) {
-      #header { padding: 16px 18px 4px; }
-      #menuDropdown { right: 18px; }
-      #searchOverlay .so-header { padding: 16px 18px 6px; }
-      #searchOverlay .so-results { padding: 2px 18px 16px; }
-      #sessionSidebar { width: 240px; }
+    @media (max-width: 600px) {
+      #header { padding: 14px 14px 4px; }
+      #headerLeft { flex: 0 0 0; }
+      #menuDropdown { right: 14px; }
+      #searchOverlay .so-header { padding: 14px 14px 6px; }
+      #searchOverlay .so-results { padding: 2px 14px 14px; }
+      #sessionSidebar { width: 100%; }
       #sessionSidebar .sb-header { padding: 16px 14px 8px; }
-      #chat { padding: 6px 18px 12px; }
-      #divider { margin: 0 18px; }
-      #inputBar { padding: 8px 18px 16px; }
-      .msg { font-size: 14px; max-width: 100%; }
+      #chat { padding: 4px 14px 10px; gap: 3px; }
+      #divider { margin: 0 14px; }
+      #inputBar { padding: 6px 14px 14px; }
+      .avatar { width: 30px; height: 30px; }
+      .avatar.ai-avatar { margin-right: 8px; }
+      .avatar.user-avatar { margin-left: 8px; }
+      .msg { font-size: 14px; max-width: 80%; }
+      .msg.user { max-width: 80%; }
+      .tl-header { padding: 14px 14px 4px; }
+      .tl-tabs { padding: 2px 14px 4px; }
+      .tl-content { padding: 2px 14px 14px; }
+      #tlSearchArea { padding: 0 14px 6px; }
+      .viewer-panel { width: 94%; max-height: 80vh; }
+      #titleBtn { font-size: 14px; }
+      #menuBtn, #rememberBtn { width: 26px; height: 26px; font-size: 15px; }
+      #scrollBottomBtn { bottom: 72px; width: 28px; height: 28px; font-size: 12px; }
+      #suggestRemember { bottom: 56px; font-size: 11px; padding: 5px 14px; }
+      .so-result { padding: 8px 0; }
+      .tl-entry { padding: 8px 0; }
+      #modelPicker .mp-body { width: 94%; }
+    }
+
+    @media (max-width: 380px) {
+      #header { padding: 10px 10px 2px; }
+      #chat { padding: 2px 10px 8px; }
+      #inputBar { padding: 4px 10px 10px; }
+      #divider { margin: 0 10px; }
+      #searchOverlay .so-header { padding: 10px 10px 4px; }
+      #searchOverlay .so-results { padding: 2px 10px 10px; }
+      .avatar { width: 26px; height: 26px; }
+      .avatar.ai-avatar { margin-right: 6px; }
+      .avatar.user-avatar { margin-left: 6px; }
+      .msg { font-size: 13px; max-width: 85%; }
       .msg.user { max-width: 85%; }
-      .tl-header { padding: 16px 18px 4px; }
-      .tl-tabs { padding: 2px 18px 4px; }
-      .tl-content { padding: 2px 18px 16px; }
-      #tlSearchArea { padding: 0 18px 6px; }
-      .viewer-panel { width: 94%; }
+      #titleBtn { font-size: 13px; letter-spacing: 2px; }
+      #menuBtn, #rememberBtn { width: 24px; height: 24px; font-size: 13px; }
+      #input { font-size: 13px; }
     }
 
     @media (min-width: 1024px) {
