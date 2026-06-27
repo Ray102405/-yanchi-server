@@ -307,9 +307,8 @@ def _save_pending_memories(entries: list[dict]):
 def _retrieve_relevant_memories(query: str, max_results: int = 5) -> list[dict]:
     """基于相关度 × 时间衰减 × hitCount 的混合排序检索
 
-    最终分数 = bigram相关度 × 时间衰减系数 × hitCount加权
-    - 半衰期 7 天，超过 30 天额外 ×0.3
-    - hitCount 加权范围 0.5~1.5
+    最终分数 = bigram相关度 × 时间衰减系数
+    hitCount 仅在同分时做次排序键，避免热循环自我强化
     """
     entries = _load_memory_index()
     if not entries or not query.strip():
@@ -317,7 +316,7 @@ def _retrieve_relevant_memories(query: str, max_results: int = 5) -> list[dict]:
 
     query_bigrams = _extract_bigrams(query)
     now = __import__("datetime").datetime.now()
-    scored: list[tuple[float, dict]] = []
+    scored: list[tuple[float, int, dict]] = []
 
     for entry in entries:
         # 1. 相关度分数 — bigram Jaccard 相似度
@@ -329,10 +328,9 @@ def _retrieve_relevant_memories(query: str, max_results: int = 5) -> list[dict]:
             similarity = 0
 
         if similarity == 0:
-            scored.append((0, entry))
             continue
 
-        # 2. 时间衰减系数：半衰期 7 天
+        # 2. 时间衰减系数：半衰期 7 天，>30天额外×0.3
         try:
             created = __import__("datetime").datetime.strptime(entry["date"], "%Y-%m-%d")
             days_ago = max((now - created).days, 0)
@@ -342,18 +340,14 @@ def _retrieve_relevant_memories(query: str, max_results: int = 5) -> list[dict]:
         except Exception:
             time_decay = 0
 
-        # 3. hitCount 加权（0.5 ~ 1.5，高频记忆占优但不主导）
-        hit = entry.get("hitCount", 0)
-        hit_weight = 0.5 + min(hit / 10, 1.0)
+        # 3. 最终分数 = 相关度 × 时间（hitCount 不参与乘法）
+        score = similarity * time_decay
 
-        # 4. 最终分数 = 相关度 × 时间 × hitCount（乘法混合）
-        score = similarity * time_decay * hit_weight
+        scored.append((score, entry.get("hitCount", 0), entry))
 
-        scored.append((score, entry))
-
-    # 排序取 top5
-    scored.sort(key=lambda x: x[0], reverse=True)
-    selected = [e for s, e in scored[:max_results] if s > 0.01]
+    # 排序：分数降序 → hitCount 降序（同分时高频优先于低频）
+    scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    selected = [e for _, _, e in scored[:max_results]]
 
     # 更新 hitCount + lastAccess
     if selected:
