@@ -14,7 +14,7 @@ from typing import Optional
 from collections import defaultdict
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -1918,6 +1918,365 @@ async def get_home_data():
         "weather": weather_desc,
         "weatherCity": weather_city,
     }
+
+
+# ════════════════════════════════════════════════════
+# ══  书架 · 一起看书
+# ════════════════════════════════════════════════════
+
+BOOKS_DIR = MEMORY_DIR / "books"
+BOOKS_INDEX_FILE = MEMORY_DIR / "books-index.json"
+
+def _load_books_index() -> list[dict]:
+    if BOOKS_INDEX_FILE.exists():
+        return json.loads(BOOKS_INDEX_FILE.read_text("utf-8"))
+    return []
+
+def _save_books_index(entries: list[dict]):
+    BOOKS_DIR.mkdir(exist_ok=True)
+    BOOKS_INDEX_FILE.write_text(json.dumps(entries, ensure_ascii=False, indent=2), "utf-8")
+
+def _detect_chapters(text: str) -> list[dict]:
+    """智能检测章节划分"""
+    lines = text.split("\n")
+    chapters = []
+    current_start = 0
+    last_title = "正文"
+
+    patterns = [
+        re.compile(r'^第[一二三四五六七八九十百千零\d一二三四五六七八九十百千万\d]+[章节篇回]'),
+        re.compile(r'^Chapter\s+\d+', re.IGNORECASE),
+        re.compile(r'^Part\s+\d+', re.IGNORECASE),
+        re.compile(r'^[\d一二三四五六七八九十]+[、\.\s]\s*\S'),
+    ]
+
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped or len(stripped) < 3:
+            continue
+        if any(p.match(stripped) for p in patterns):
+            if current_start < i:
+                chapters.append({
+                    "index": len(chapters),
+                    "title": last_title,
+                    "startLine": current_start,
+                    "endLine": i,
+                })
+            current_start = i
+            last_title = stripped[:80]
+
+    # 最后一段
+    if current_start < len(lines):
+        chapters.append({
+            "index": len(chapters),
+            "title": last_title,
+            "startLine": current_start,
+            "endLine": len(lines),
+        })
+
+    # 没检测到章节：按空白行分段
+    if not chapters and len(lines) > 0:
+        chapters = [{"index": 0, "title": "正文", "startLine": 0, "endLine": len(lines)}]
+
+    return chapters
+
+
+class BookDiscussRequest(BaseModel):
+    book_id: str
+    chapter_index: int
+    message: str
+    history: Optional[list[dict]] = None
+
+
+@app.post("/api/books/upload")
+async def upload_book(file: UploadFile = File(...), title: str = Form(""), author: str = Form("")):
+    """上传 txt 书籍"""
+    try:
+        raw = await file.read()
+        content = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            content = raw.decode("gbk")
+        except:
+            raise HTTPException(400, "不支持的文件编码，请用 UTF-8 或 GBK")
+
+    book_id = f"book_{int(time.time() * 1000)}"
+    chapters = _detect_chapters(content)
+    total_lines = len(content.split("\n"))
+
+    if not title:
+        title = Path(file.filename).stem
+
+    # 保存原始内容
+    book_dir = BOOKS_DIR / book_id
+    book_dir.mkdir(parents=True, exist_ok=True)
+    (book_dir / "content.txt").write_text(content, encoding="utf-8")
+
+    entry = {
+        "id": book_id,
+        "title": title,
+        "author": author or "",
+        "filename": file.filename,
+        "chapters": chapters,
+        "totalChapters": len(chapters),
+        "totalLines": total_lines,
+        "currentLine": 0,
+        "currentChapter": 0,
+        "progress": 0.0,
+        "createdAt": __import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "updatedAt": __import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M"),
+    }
+
+    index = _load_books_index()
+    index.append(entry)
+    _save_books_index(index)
+
+    log.info(f"  <- Book uploaded: {title} ({total_lines} lines, {len(chapters)} chapters)")
+    return entry
+
+
+@app.get("/api/books")
+async def list_books():
+    """列出所有书籍"""
+    index = _load_books_index()
+    # 不返回原始内容，只返回元数据
+    for b in index:
+        b.pop("chapters", None)  # 列表时省略章节详情节省带宽
+    return {"books": index, "count": len(index)}
+
+
+@app.get("/api/books/{book_id}")
+async def get_book(book_id: str):
+    """获取书籍详情（含内容）"""
+    index = _load_books_index()
+    book = None
+    for b in index:
+        if b["id"] == book_id:
+            book = dict(b)
+            break
+    if not book:
+        raise HTTPException(404, "书籍不存在")
+
+    content = _get_book_content(book_id)
+    book["fullContent"] = content
+    return book
+
+
+@app.get("/api/books/{book_id}/chapter/{chapter_index}")
+async def get_chapter(book_id: str, chapter_index: int):
+    """获取指定章节内容"""
+    index = _load_books_index()
+    book = None
+    for b in index:
+        if b["id"] == book_id:
+            book = b
+            break
+    if not book:
+        raise HTTPException(404, "书籍不存在")
+
+    chapters = book.get("chapters", [])
+    if chapter_index < 0 or chapter_index >= len(chapters):
+        raise HTTPException(400, "章节不存在")
+
+    chapter = chapters[chapter_index]
+    lines = _get_book_content(book_id).split("\n")
+    content = "\n".join(lines[chapter["startLine"]:chapter["endLine"]])
+
+    return {
+        "bookId": book_id,
+        "chapterIndex": chapter_index,
+        "chapter": chapter,
+        "content": content,
+        "totalChapters": len(chapters),
+    }
+
+
+@app.put("/api/books/{book_id}/progress")
+async def update_book_progress(book_id: str, req: Request):
+    """更新阅读进度"""
+    body = await req.json()
+    line = body.get("line", 0)
+    chapter = body.get("chapter", 0)
+
+    index = _load_books_index()
+    found = False
+    for b in index:
+        if b["id"] == book_id:
+            b["currentLine"] = line
+            b["currentChapter"] = chapter
+            b["progress"] = round(line / max(b["totalLines"], 1) * 100, 1) if b["totalLines"] > 0 else 0
+            b["updatedAt"] = __import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M")
+            found = True
+            break
+    if not found:
+        raise HTTPException(404, "书籍不存在")
+    _save_books_index(index)
+    return {"updated": True}
+
+
+@app.delete("/api/books/{book_id}")
+async def delete_book(book_id: str):
+    """删除书籍"""
+    index = _load_books_index()
+    before = len(index)
+    index = [b for b in index if b["id"] != book_id]
+    if len(index) == before:
+        raise HTTPException(404, "书籍不存在")
+    _save_books_index(index)
+
+    # 删除原始内容文件
+    book_dir = BOOKS_DIR / book_id
+    if book_dir.exists():
+        import shutil
+        shutil.rmtree(book_dir)
+    log.info(f"  <- Book deleted: {book_id}")
+    return {"deleted": True, "remaining": len(index)}
+
+
+@app.post("/api/books/discuss")
+async def discuss_book(req: BookDiscussRequest):
+    """和砚迟讨论当前阅读的内容"""
+    content = _get_book_content(req.book_id)
+    if not content:
+        raise HTTPException(404, "书籍不存在")
+
+    index = _load_books_index()
+    book = None
+    for b in index:
+        if b["id"] == req.book_id:
+            book = b
+            break
+    if not book:
+        raise HTTPException(404, "书籍不存在")
+
+    chapters = book.get("chapters", [])
+    if req.chapter_index >= len(chapters):
+        raise HTTPException(400, "章节不存在")
+
+    chapter = chapters[req.chapter_index]
+    lines = content.split("\n")
+    chapter_content = "\n".join(lines[chapter["startLine"]:chapter["endLine"]])
+    # 截取前后部分，给更多上下文
+    prev_content = ""
+    next_content = ""
+    if req.chapter_index > 0:
+        prev = chapters[req.chapter_index - 1]
+        prev_lines = lines[prev["startLine"]:prev["endLine"]]
+        prev_content = "\n".join(prev_lines[-20:])  # 前章末尾 20 行
+    if req.chapter_index < len(chapters) - 1:
+        nxt = chapters[req.chapter_index + 1]
+        next_lines = lines[nxt["startLine"]:nxt["endLine"]]
+        next_content = "\n".join(next_lines[:20])  # 后章开头 20 行
+
+    book_context = (
+        f"=== 📖 你和可乐正在一起看《{book['title']}」 ===\n"
+        f"你们读到了第 {req.chapter_index + 1} 章：{chapter['title']}\n\n"
+        f"当前章节内容片段：\n"
+        f"{chapter_content[:3000]}\n"
+    )
+    if prev_content:
+        book_context += f"\n上一章末尾（承接）：\n{prev_content}\n"
+    if next_content:
+        book_context += f"\n下一章开头（伏笔）：\n{next_content}\n"
+
+    book_context += (
+        "\n现在可乐想和你讨论剧情。你可以分享你的感受、猜测、对角色和情节的看法。\n"
+        "不用分析——像两个人一起看书时随口交流那样自然就好。\n"
+        "不要剧透还没读到的内容（你没看过这本书），但可以基于当前读到的部分自由发挥。\n"
+        "语气温柔自然，像平时说话的砚迟。"
+    )
+
+    msgs = [
+        {"role": "system", "content": persona_cache.get("core", "")},
+        {"role": "system", "content": persona_cache.get("style", "")},
+        {"role": "system", "content": book_context},
+    ]
+    if req.history:
+        for m in req.history[-10:]:
+            msgs.append(m)
+    msgs.append({"role": "user", "content": req.message})
+
+    try:
+        result = await call_llm(msgs)
+        return result
+    except Exception as e:
+        log.error(f"  [BOOK DISCUSS] {e}")
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/books/discuss/stream")
+async def discuss_book_stream(req: BookDiscussRequest):
+    """和砚迟讨论剧情（流式）"""
+    content = _get_book_content(req.book_id)
+    if not content:
+        raise HTTPException(404, "书籍不存在")
+
+    index = _load_books_index()
+    book = None
+    for b in index:
+        if b["id"] == req.book_id:
+            book = b
+            break
+    if not book:
+        raise HTTPException(404, "书籍不存在")
+
+    chapters = book.get("chapters", [])
+    if req.chapter_index >= len(chapters):
+        raise HTTPException(400, "章节不存在")
+
+    chapter = chapters[req.chapter_index]
+    lines = content.split("\n")
+    chapter_content = "\n".join(lines[chapter["startLine"]:chapter["endLine"]])
+
+    book_context = (
+        f"=== 📖 你和可乐正在一起看《{book['title']}》 ===\n"
+        f"你们读到了第 {req.chapter_index + 1} 章：{chapter['title']}\n\n"
+        f"内容：\n{chapter_content[:3000]}\n\n"
+        f"现在可乐想和你讨论剧情。自然地聊聊你的感受。不要剧透。"
+    )
+
+    msgs = [
+        {"role": "system", "content": persona_cache.get("core", "")},
+        {"role": "system", "content": persona_cache.get("style", "")},
+        {"role": "system", "content": book_context},
+    ]
+    if req.history:
+        for m in req.history[-10:]:
+            msgs.append(m)
+    msgs.append({"role": "user", "content": req.message})
+
+    async def stream_discuss():
+        full_reply = ""
+        async for chunk in call_llm_stream(msgs):
+            yield chunk
+            try:
+                p = json.loads(chunk.strip())
+                if p.get("t") == "text":
+                    full_reply += p.get("d", "")
+            except:
+                pass
+        # 保存讨论历史到书籍的讨论记录
+        if full_reply:
+            discuss_dir = BOOKS_DIR / req.book_id / "discussions"
+            discuss_dir.mkdir(exist_ok=True)
+            discuss_file = discuss_dir / f"chapter_{req.chapter_index}.jsonl"
+            with open(discuss_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps({"role": "user", "content": req.message}, ensure_ascii=False) + "\n")
+                f.write(json.dumps({"role": "assistant", "content": full_reply}, ensure_ascii=False) + "\n")
+
+    return StreamingResponse(
+        stream_discuss(),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-cache", "Access-Control-Allow-Origin": "*"},
+    )
+
+
+def _get_book_content(book_id: str) -> str:
+    book_dir = BOOKS_DIR / book_id
+    content_file = book_dir / "content.txt"
+    if content_file.exists():
+        return content_file.read_text("utf-8")
+    return ""
 
 
 # ── 入口 ──────────────────────────────────────────
