@@ -1794,7 +1794,32 @@ async def get_timeline():
                 "highlighted": rel in highlights,
             })
 
-    # 精选列表（含已高亮的聊天和笔记）
+    # 读书讨论记录
+    discuss_dir = MEMORY_DIR / "yanchi-book-discussions"
+    discussions = []
+    if discuss_dir.exists():
+        for f in sorted(discuss_dir.rglob("*.md"), reverse=True):
+            rel = f.relative_to(MEMORY_DIR).as_posix()
+            lines = f.read_text("utf-8").split("\n")
+            title = "读书讨论"
+            date = ""
+            preview = ""
+            for line in lines:
+                if line.startswith("# 一起看"):
+                    title = f"📚 {line.strip('# ')}"
+                if line.startswith("## "):
+                    date = line[3:13]  # extract YYYY-MM-DD from "## 2026-06-27 19:00 · ..."
+                    if not preview:
+                        preview = line
+            discussions.append({
+                "id": rel,
+                "date": date,
+                "title": title,
+                "preview": _read_preview(f, 150),
+                "highlighted": rel in highlights,
+            })
+
+    # 精选列表（含已高亮的聊天、笔记和讨论）
     highlighted = []
     for hid in highlights:
         entry = None
@@ -1802,10 +1827,12 @@ async def get_timeline():
             if c["id"] == hid: entry = c; break
         for n in notes:
             if n["id"] == hid: entry = n; break
+        for d in discussions:
+            if d["id"] == hid: entry = d; break
         if entry:
             highlighted.append(entry)
 
-    return {"chats": chats, "notes": notes, "highlights": highlighted}
+    return {"chats": chats, "notes": notes, "discussions": discussions, "highlights": highlighted}
 
 class TimelineAction(BaseModel):
     id: str  # entry id (relative path)
@@ -1826,8 +1853,8 @@ async def toggle_highlight(req: TimelineAction):
 @app.delete("/api/timeline/entry")
 async def delete_timeline_entry(req: TimelineAction):
     """删除回忆条目（真正删除文件）"""
-    # 支持 chat 和 note 文件
-    for candidate in [MEMORY_DIR / req.id, MEMORY_DIR / "yanchi-chats" / req.id, MEMORY_DIR / "yanchi-notes" / req.id, MEMORY_DIR / "archive" / req.id]:
+    # 支持 chat、note、book discussion 文件
+    for candidate in [MEMORY_DIR / req.id, MEMORY_DIR / "yanchi-chats" / req.id, MEMORY_DIR / "yanchi-notes" / req.id, MEMORY_DIR / "yanchi-book-discussions" / req.id, MEMORY_DIR / "archive" / req.id]:
         full = candidate.resolve()
         if full.exists() and str(full).startswith(str(MEMORY_DIR.resolve())):
             full.unlink()
@@ -1859,7 +1886,7 @@ async def get_timeline_content(req: TimelineContentRequest):
                 lines.append(content)
                 lines.append("")
             return {"id": req.id, "content": "\n".join(lines)}
-    for candidate in [MEMORY_DIR / req.id, MEMORY_DIR / "yanchi-chats" / req.id, MEMORY_DIR / "yanchi-notes" / req.id, MEMORY_DIR / "archive" / req.id]:
+    for candidate in [MEMORY_DIR / req.id, MEMORY_DIR / "yanchi-chats" / req.id, MEMORY_DIR / "yanchi-notes" / req.id, MEMORY_DIR / "yanchi-book-discussions" / req.id, MEMORY_DIR / "archive" / req.id]:
         full = candidate.resolve()
         if full.exists() and str(full).startswith(str(MEMORY_DIR.resolve())):
             content = full.read_text("utf-8")
@@ -2330,6 +2357,8 @@ async def discuss_book_stream(req: BookDiscussRequest):
             with open(discuss_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps({"role": "user", "content": req.message}, ensure_ascii=False) + "\n")
                 f.write(json.dumps({"role": "assistant", "content": full_reply}, ensure_ascii=False) + "\n")
+            # 同步到时间线
+            _save_book_discussion_to_timeline(req.book_id, book["title"], req.chapter_index, chapters, req.message, full_reply)
 
     return StreamingResponse(
         stream_discuss(),
@@ -2344,6 +2373,28 @@ def _get_book_content(book_id: str) -> str:
     if content_file.exists():
         return content_file.read_text("utf-8")
     return ""
+
+
+def _save_book_discussion_to_timeline(book_id: str, book_title: str, chapter_index: int, chapters: list[dict], user_msg: str, reply: str):
+    """将书籍讨论保存到时间线（yanchi-book-discussions/<book_id>.md）"""
+    discuss_dir = MEMORY_DIR / "yanchi-book-discussions"
+    discuss_dir.mkdir(exist_ok=True)
+    file_path = discuss_dir / f"{book_id}.md"
+
+    chapter_title = chapters[chapter_index]["title"] if chapter_index < len(chapters) else ""
+    now = __import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M")
+    entry = (
+        f"\n\n## {now} · 第 {chapter_index + 1} 章 {chapter_title}\n\n"
+        f"**可乐**：{user_msg}\n\n"
+        f"**砚迟**：{reply}\n"
+    )
+
+    if file_path.exists():
+        with open(file_path, "a", encoding="utf-8") as f:
+            f.write(entry)
+    else:
+        header = f"# 一起看《{book_title}》\n\n> 读书讨论记录\n"
+        file_path.write_text(header + entry, encoding="utf-8")
 
 
 # ── 入口 ──────────────────────────────────────────
