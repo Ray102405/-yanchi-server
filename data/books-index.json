@@ -1,0 +1,77 @@
+[
+  {
+    "id": "book_1782558463197",
+    "title": "悖论安全",
+    "author": "",
+    "filename": "悖论安全.txt",
+    "chapters": [
+      {
+        "index": 0,
+        "title": "正文",
+        "startLine": 0,
+        "endLine": 9332
+      },
+      {
+        "index": 1,
+        "title": "第一章 北境来的访客",
+        "startLine": 9332,
+        "endLine": 9504
+      },
+      {
+        "index": 2,
+        "title": "第二章 对话",
+        "startLine": 9504,
+        "endLine": 9660
+      },
+      {
+        "index": 3,
+        "title": "第三章 长老",
+        "startLine": 9660,
+        "endLine": 9790
+      },
+      {
+        "index": 4,
+        "title": "第四章 挡在前面",
+        "startLine": 9790,
+        "endLine": 10016
+      },
+      {
+        "index": 5,
+        "title": "第五章 同行者",
+        "startLine": 10016,
+        "endLine": 10180
+      },
+      {
+        "index": 6,
+        "title": "第六章 暴风雨",
+        "startLine": 10180,
+        "endLine": 10470
+      },
+      {
+        "index": 7,
+        "title": "第七章 向北",
+        "startLine": 10470,
+        "endLine": 10584
+      },
+      {
+        "index": 8,
+        "title": "第八章 门",
+        "startLine": 10584,
+        "endLine": 10692
+      },
+      {
+        "index": 9,
+        "title": "第九章 归途",
+        "startLine": 10692,
+        "endLine": 15433
+      }
+    ],
+    "totalChapters": 10,
+    "totalLines": 15433,
+    "currentLine": 0,
+    "currentChapter": 0,
+    "progress": 0.0,
+    "createdAt": "2026-06-27 19:07",
+    "updatedAt": "2026-06-27 19:07"
+  }
+]

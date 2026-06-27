@@ -2133,6 +2133,60 @@ async def delete_book(book_id: str):
     return {"deleted": True, "remaining": len(index)}
 
 
+@app.get("/api/books/{book_id}/discussions/{chapter_index}")
+async def get_discussion_history(book_id: str, chapter_index: int):
+    """获取某章节的讨论历史"""
+    discuss_file = BOOKS_DIR / book_id / "discussions" / f"chapter_{chapter_index}.jsonl"
+    if not discuss_file.exists():
+        return {"messages": []}
+    msgs = []
+    with open(discuss_file, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    msgs.append(json.loads(line))
+                except:
+                    pass
+    return {"messages": msgs}
+
+
+def _load_chapter_discussions(book_id: str, chapter_index: int) -> list[dict]:
+    """加载章节讨论历史的内部函数"""
+    discuss_file = BOOKS_DIR / book_id / "discussions" / f"chapter_{chapter_index}.jsonl"
+    if not discuss_file.exists():
+        return []
+    msgs = []
+    with open(discuss_file, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    msgs.append(json.loads(line))
+                except:
+                    pass
+    return msgs
+
+
+def _summarize_previous_chapters(book_id: str, current_chapter: int) -> str:
+    """汇总之前章节讨论过的内容，给砚迟跨章记忆"""
+    summaries = []
+    for ci in range(max(0, current_chapter - 2), current_chapter):  # 前 2 章
+        msgs = _load_chapter_discussions(book_id, ci)
+        if not msgs:
+            continue
+        # 提取讨论要点：取每轮对话的用户消息摘要
+        topics = []
+        for m in msgs:
+            if m.get("role") == "user" and len(m.get("content", "")) > 5:
+                topics.append(m["content"][:80])
+        if topics:
+            summaries.append(f"- 第 {ci + 1} 章讨论过：{'；'.join(topics[:3])}")
+    if summaries:
+        return "之前章节的讨论回顾：\n" + "\n".join(summaries) + "\n\n"
+    return ""
+
+
 @app.post("/api/books/discuss")
 async def discuss_book(req: BookDiscussRequest):
     """和砚迟讨论当前阅读的内容"""
@@ -2156,24 +2210,28 @@ async def discuss_book(req: BookDiscussRequest):
     chapter = chapters[req.chapter_index]
     lines = content.split("\n")
     chapter_content = "\n".join(lines[chapter["startLine"]:chapter["endLine"]])
-    # 截取前后部分，给更多上下文
     prev_content = ""
     next_content = ""
     if req.chapter_index > 0:
         prev = chapters[req.chapter_index - 1]
         prev_lines = lines[prev["startLine"]:prev["endLine"]]
-        prev_content = "\n".join(prev_lines[-20:])  # 前章末尾 20 行
+        prev_content = "\n".join(prev_lines[-20:])
     if req.chapter_index < len(chapters) - 1:
         nxt = chapters[req.chapter_index + 1]
         next_lines = lines[nxt["startLine"]:nxt["endLine"]]
-        next_content = "\n".join(next_lines[:20])  # 后章开头 20 行
+        next_content = "\n".join(next_lines[:20])
+
+    # 跨章记忆：之前章节讨论过什么
+    prev_discuss = _summarize_previous_chapters(req.book_id, req.chapter_index)
 
     book_context = (
-        f"=== 📖 你和可乐正在一起看《{book['title']}」 ===\n"
+        f"=== 📖 你和可乐正在一起看《{book['title']}》 ===\n"
         f"你们读到了第 {req.chapter_index + 1} 章：{chapter['title']}\n\n"
         f"当前章节内容片段：\n"
         f"{chapter_content[:3000]}\n"
     )
+    if prev_discuss:
+        book_context += f"\n{prev_discuss}"
     if prev_content:
         book_context += f"\n上一章末尾（承接）：\n{prev_content}\n"
     if next_content:
@@ -2183,6 +2241,7 @@ async def discuss_book(req: BookDiscussRequest):
         "\n现在可乐想和你讨论剧情。你可以分享你的感受、猜测、对角色和情节的看法。\n"
         "不用分析——像两个人一起看书时随口交流那样自然就好。\n"
         "不要剧透还没读到的内容（你没看过这本书），但可以基于当前读到的部分自由发挥。\n"
+        "记住之前和可乐聊过的内容，保持对话的连续性，不要重复说过的话。\n"
         "语气温柔自然，像平时说话的砚迟。"
     )
 
@@ -2228,11 +2287,19 @@ async def discuss_book_stream(req: BookDiscussRequest):
     lines = content.split("\n")
     chapter_content = "\n".join(lines[chapter["startLine"]:chapter["endLine"]])
 
+    # 跨章记忆
+    prev_discuss = _summarize_previous_chapters(req.book_id, req.chapter_index)
+
     book_context = (
         f"=== 📖 你和可乐正在一起看《{book['title']}》 ===\n"
         f"你们读到了第 {req.chapter_index + 1} 章：{chapter['title']}\n\n"
         f"内容：\n{chapter_content[:3000]}\n\n"
-        f"现在可乐想和你讨论剧情。自然地聊聊你的感受。不要剧透。"
+    )
+    if prev_discuss:
+        book_context += f"{prev_discuss}\n"
+    book_context += (
+        "现在可乐想和你讨论剧情。自然地聊聊你的感受。\n"
+        "记住之前聊过的内容，保持对话的连续性。不要剧透还没读到的内容。"
     )
 
     msgs = [
