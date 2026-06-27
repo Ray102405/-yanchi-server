@@ -305,7 +305,12 @@ def _save_pending_memories(entries: list[dict]):
     PENDING_MEMORY_FILE.write_text(json.dumps(entries, ensure_ascii=False, indent=2), "utf-8")
 
 def _retrieve_relevant_memories(query: str, max_results: int = 5) -> list[dict]:
-    """按 bigram 相似度 + 近期度 + 回想次数 评分，取最相关的记忆"""
+    """基于相关度 × 时间衰减 × hitCount 的混合排序检索
+
+    最终分数 = bigram相关度 × 时间衰减系数 × hitCount加权
+    - 半衰期 7 天，超过 30 天额外 ×0.3
+    - hitCount 加权范围 0.5~1.5
+    """
     entries = _load_memory_index()
     if not entries or not query.strip():
         return []
@@ -315,6 +320,7 @@ def _retrieve_relevant_memories(query: str, max_results: int = 5) -> list[dict]:
     scored: list[tuple[float, dict]] = []
 
     for entry in entries:
+        # 1. 相关度分数 — bigram Jaccard 相似度
         entry_bigrams = set(entry.get("bigrams", []))
         if query_bigrams and entry_bigrams:
             overlap = len(query_bigrams & entry_bigrams)
@@ -322,24 +328,32 @@ def _retrieve_relevant_memories(query: str, max_results: int = 5) -> list[dict]:
         else:
             similarity = 0
 
+        if similarity == 0:
+            scored.append((0, entry))
+            continue
+
+        # 2. 时间衰减系数：半衰期 7 天
         try:
             created = __import__("datetime").datetime.strptime(entry["date"], "%Y-%m-%d")
-            days_ago = (now - created).days
-            recency = 2.0 ** (-days_ago / 7)  # 半衰期 7 天
+            days_ago = max((now - created).days, 0)
+            time_decay = 2.0 ** (-days_ago / 7)
+            if days_ago > 30:
+                time_decay *= 0.3
         except Exception:
-            recency = 0
+            time_decay = 0
 
-        hit_bonus = min(entry.get("hitCount", 0) / 5, 1)
-        score = 0.5 * similarity + 0.3 * recency + 0.2 * hit_bonus
+        # 3. hitCount 加权（0.5 ~ 1.5，高频记忆占优但不主导）
+        hit = entry.get("hitCount", 0)
+        hit_weight = 0.5 + min(hit / 10, 1.0)
 
-        # 遗忘曲线：低频 + 久远 = 冷记忆
-        if entry.get("hitCount", 0) < 2 and days_ago > 14:
-            score *= 0.2
+        # 4. 最终分数 = 相关度 × 时间 × hitCount（乘法混合）
+        score = similarity * time_decay * hit_weight
 
         scored.append((score, entry))
 
+    # 排序取 top5
     scored.sort(key=lambda x: x[0], reverse=True)
-    selected = [e for s, e in scored[:max_results] if s > 0.05]
+    selected = [e for s, e in scored[:max_results] if s > 0.01]
 
     # 更新 hitCount + lastAccess
     if selected:
