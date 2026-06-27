@@ -1,0 +1,8 @@
+{
+  "api_key": "sk-dd33d9d3894e4cc9a81b3eeb7bba914f",
+  "base_url": "https://api.deepseek.com/anthropic",
+  "model": "deepseek-v4-flash",
+  "qwen_api_key": "sk-ws-H.RPLDDYL.81MG.MEUCIGvQczvzf7lj357NuED34P2emXtV2Fisu5laGTlwbDHOAiEApYkxrkatJAHzi-0HIfrgpXMGQVD2qDitxCShcKUYd2g",
+  "qwen_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "qwen_vl_model": "qwen-vl-max"
+}

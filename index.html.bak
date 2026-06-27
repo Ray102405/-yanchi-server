@@ -905,136 +905,6 @@
       padding: 4px 0;
     }
 
-    /* ── 主页视图 ──────────────────────── */
-    #homeView {
-      display: none;
-      flex-direction: column;
-      flex: 1;
-      overflow-y: auto;
-    }
-    #homeView.show { display: flex; }
-
-    .hv-center {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 40px 24px;
-      text-align: center;
-    }
-
-    .hv-brand {
-      font-family: "Cormorant Garamond", "Noto Serif SC", serif;
-      font-size: 42px;
-      font-style: italic;
-      color: var(--ink);
-      letter-spacing: 4px;
-      margin-bottom: 4px;
-    }
-
-    .hv-sub {
-      font-size: 11px;
-      color: var(--text-dim);
-      opacity: 0.4;
-      letter-spacing: 6px;
-      margin-bottom: 48px;
-    }
-
-    .hv-cards {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      width: 100%;
-      max-width: 320px;
-    }
-
-    .hv-card {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 16px 20px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-align: left;
-    }
-    .hv-card:hover {
-      border-color: var(--ink-dim);
-      background: rgba(196, 168, 122, 0.04);
-    }
-    .hv-card:active { transform: scale(0.98); }
-
-    .hv-icon {
-      font-size: 24px;
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      background: var(--surface);
-      border-radius: 12px;
-    }
-
-    .hv-name {
-      font-size: 15px;
-      color: var(--text-bright);
-      font-weight: 500;
-    }
-
-    .hv-desc {
-      font-size: 11px;
-      color: var(--text-dim);
-      opacity: 0.6;
-    }
-
-    /* ── 底部导航栏 ────────────────────── */
-    #bottomNav {
-      display: none;
-      align-items: stretch;
-      height: 52px;
-      border-top: 1px solid var(--border);
-      background: rgba(13,13,13,0.92);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      flex-shrink: 0;
-      z-index: 60;
-    }
-    #bottomNav.show { display: flex; }
-
-    .bn-item {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 1px;
-      cursor: pointer;
-      transition: all 0.15s;
-      padding: 4px 0;
-      opacity: 0.4;
-    }
-    .bn-item:hover { opacity: 0.7; }
-    .bn-item.active {
-      opacity: 1;
-    }
-    .bn-item.active .bn-icon { transform: scale(1.1); }
-
-    .bn-icon {
-      font-size: 18px;
-      line-height: 1;
-      transition: transform 0.15s;
-    }
-
-    .bn-label {
-      font-size: 8px;
-      color: var(--text-dim);
-      letter-spacing: 0.5px;
-    }
-    .bn-item.active .bn-label { color: var(--text); }
-
     /* ═══════════════════════════════════ */
     /* ══  TIMELINE  ════════════════════ */
     /* ═══════════════════════════════════ */
@@ -1485,17 +1355,9 @@
       .so-result { padding: 8px 0; }
       .tl-entry { padding: 8px 0; }
       #modelPicker .mp-body { width: 94%; }
-      .hv-brand { font-size: 34px; }
-      .hv-cards { max-width: 280px; }
-      #bottomNav { height: 48px; }
-      .bn-icon { font-size: 16px; }
     }
 
     @media (max-width: 380px) {
-      .hv-brand { font-size: 28px; }
-      .hv-sub { margin-bottom: 32px; }
-      .hv-card { padding: 14px 16px; }
-      #bottomNav { height: 44px; }
       #header { padding: 8px 10px 2px; }
       #chat { padding: 2px 10px 6px; }
       #inputBar { padding: 4px 10px 10px; }
@@ -1708,27 +1570,9 @@
       </div>
     </div>
   </div>
-
-  <!-- ══ Bottom Navigation ══ -->
-  <div id="bottomNav">
-    <div class="bn-item active" data-view="home" onclick="navigateTo('home')">
-      <span class="bn-icon">🏠</span>
-      <span class="bn-label">首页</span>
-    </div>
-    <div class="bn-item" data-view="chat" onclick="navigateTo('chat')">
-      <span class="bn-icon">💬</span>
-      <span class="bn-label">聊天</span>
-    </div>
-    <div class="bn-item" data-view="timeline" onclick="navigateTo('timeline')">
-      <span class="bn-icon">📖</span>
-      <span class="bn-label">回忆</span>
-    </div>
-    <div class="bn-item" data-view="settings" onclick="showSettings()">
-      <span class="bn-icon">⚙️</span>
-      <span class="bn-label">设置</span>
-    </div>
-  </div>
 </div>
+
+<!-- ══ Session Sidebar ══ -->
 <div id="sessionOverlay" onclick="hideSessionSheet()"></div>
 <div id="sessionSidebar">
   <div class="sb-header">
@@ -3077,46 +2921,8 @@ chatEl.addEventListener("scroll", () => {
 document.getElementById("scrollBottomBtn").addEventListener("click", () => {
   chatEl.scrollTo({ top: chatEl.scrollHeight, behavior: "smooth" });
 });
-// ── 视图导航 ─────────────────────────────
-function navigateTo(view) {
-  // 隐藏所有视图
-  document.getElementById("homeView")?.classList.remove("show");
-  document.getElementById("chat").style.display = "none";
-  document.getElementById("divider").style.display = "none";
-  document.getElementById("inputBar").style.display = "none";
-  document.getElementById("timelineView")?.classList.remove("show");
-  document.getElementById("settingsOverlay")?.classList.remove("show");
-
-  // 底部导航高亮
-  document.querySelectorAll(".bn-item").forEach(el => {
-    el.classList.toggle("active", el.dataset.view === view);
-  });
-
-  // 显示目标视图
-  switch (view) {
-    case "home":
-      document.getElementById("homeView")?.classList.add("show");
-      document.getElementById("bottomNav")?.classList.add("show");
-      break;
-    case "chat":
-      document.getElementById("chat").style.display = "flex";
-      document.getElementById("divider").style.display = "block";
-      document.getElementById("inputBar").style.display = "flex";
-      document.getElementById("bottomNav")?.classList.add("show");
-      document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
-      break;
-    case "timeline":
-      document.getElementById("timelineView")?.classList.add("show");
-      document.getElementById("bottomNav")?.classList.add("show");
-      if (typeof loadTimeline === "function") loadTimeline();
-      break;
-  }
-}
-
 (function init() {
   initTheme();
-  // 默认显示主页
-  navigateTo('home');
 
   const sid = getSessionId();
   let list = getSessionList();
