@@ -18,6 +18,10 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  // 跳过流式请求，避免缓存截断流式响应
+  if (e.request.url.includes('/stream')) {
+    return;
+  }
   e.respondWith(
     fetch(e.request)
       .then(r => {
