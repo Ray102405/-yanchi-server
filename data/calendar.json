@@ -1,1 +1,58 @@
-[]
+[
+  {
+    "id": "cal_1782723875942",
+    "title": "计算机控制",
+    "date": "2026-07-02",
+    "type": "exam",
+    "recurring": false,
+    "note": ""
+  },
+  {
+    "id": "cal_1782723889724",
+    "title": "运动控制",
+    "date": "2026-07-03",
+    "type": "exam",
+    "recurring": false,
+    "note": ""
+  },
+  {
+    "id": "cal_1782723916701",
+    "title": "在一起❤",
+    "date": "2026-06-12",
+    "type": "anniversary",
+    "recurring": true,
+    "note": ""
+  },
+  {
+    "id": "cal_1782724563968_3",
+    "title": "情人节",
+    "date": "2027-02-14",
+    "type": "anniversary",
+    "recurring": true,
+    "note": ""
+  },
+  {
+    "id": "cal_1782724563968_4",
+    "title": "七夕",
+    "date": "2026-08-18",
+    "type": "anniversary",
+    "recurring": true,
+    "note": ""
+  },
+  {
+    "id": "cal_1782724636360",
+    "title": "生日",
+    "date": "2026-12-05",
+    "type": "anniversary",
+    "recurring": true,
+    "note": ""
+  },
+  {
+    "id": "cal_1782724636361",
+    "title": "砚迟生日",
+    "date": "2027-06-12",
+    "type": "anniversary",
+    "recurring": true,
+    "note": ""
+  }
+]

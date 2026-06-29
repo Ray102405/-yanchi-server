@@ -58,9 +58,13 @@ async def get_timeline():
             if rel in seen:
                 continue
             seen.add(rel)
+            # 从聊天文件中提取第一条用户消息作为标题
+            raw_text = f.read_text("utf-8")
+            title_match = __import__("re").search(r'\|\s*\*\*乐乐\*\*\s*\|\s*(.+?)\s*\|', raw_text)
+            chat_title = title_match.group(1)[:40] if title_match else f.stem
             chats.append({
                 "id": rel, "date": f.stem[:10],
-                "title": f.stem, "preview": read_preview(f),
+                "title": chat_title, "preview": read_preview(f),
                 "highlighted": rel in highlights,
             })
 
