@@ -13,7 +13,7 @@ from fastapi.responses import StreamingResponse
 import config
 from config import (
     log, API_KEY, API_URL, _current_model, MEMORY_DIR,
-    get_current_model, set_last_chat_activity,
+    get_current_model, set_last_chat_activity, BACKGROUND_MODEL,
 )
 from models import ChatRequest, SaveChatRequest, TodayNoteRequest, FileAttachment
 from session import get_session, _mark_dirty, truncate_messages as _truncate_msgs
@@ -27,9 +27,9 @@ router = APIRouter()
 
 
 # ── API 调用（非流式）────────────────────────────────
-async def call_llm(messages: list[dict]) -> dict:
+async def call_llm(messages: list[dict], model: str | None = None) -> dict:
     body = {
-        "model": get_current_model(),
+        "model": model or get_current_model(),
         "max_tokens": 8192,
         "messages": messages,
     }
@@ -275,10 +275,18 @@ async def chat_stream(req: ChatRequest):
             get_session(sid).append({"role": "assistant", "content": full_reply})
             _mark_dirty()
 
-        # Accumulate daily token usage
+        # 自动存档：正常完成后将 session 写入 yanchi-chats/
+        if sid and full_reply and not has_error:
+            session_obj = get_session(sid)
+            if session_obj and len(session_obj) > 2:
+                _save_chat_log(session_obj)
+
+        # 无论成功失败都尝试记 token（独立逻辑）
         if final_usage:
             _save_token_usage(MEMORY_DIR, final_usage)
-        elif sid:
+
+        # 流式出错 → 回滚孤儿用户消息（独立于 token 记录）
+        if sid and has_error:
             session_obj = get_session(sid)
             if session_obj and session_obj[-1].get("role") == "user":
                 session_obj.pop()
@@ -294,14 +302,12 @@ async def chat_stream(req: ChatRequest):
     )
 
 
-# ── 路由：保存对话 ──────────────────────────────────
-@router.post("/savechat")
-async def savechat(req: SaveChatRequest):
-    conv = req.history or []
-    if not conv:
-        raise HTTPException(400, "no history to save")
+# ── 保存对话 ──────────────────────────────────────
 
-    log.info("  -> Saving chat log...")
+def _save_chat_log(conv: list[dict]) -> str | None:
+    """将对话历史追加写入 yanchi-chats/{today}.md，返回文件名或 None。"""
+    if not conv:
+        return None
 
     chat_dir = MEMORY_DIR / "yanchi-chats"
     chat_dir.mkdir(parents=True, exist_ok=True)
@@ -321,8 +327,21 @@ async def savechat(req: SaveChatRequest):
     with open(chat_file, "a", encoding="utf-8") as f:
         f.write("\r\n".join(lines))
 
-    log.info(f"  <- Chat log saved ({len(conv)} messages)")
-    return {"saved": True, "file": f"{today}.md", "count": len(conv)}
+    log.info(f"  <- Chat log saved ({len(conv)} messages) -> {chat_file.name}")
+    return chat_file.name
+
+
+@router.post("/savechat")
+async def savechat(req: SaveChatRequest):
+    conv = req.history or []
+    if not conv:
+        raise HTTPException(400, "no history to save")
+
+    log.info("  -> Saving chat log (manual)...")
+    fname = _save_chat_log(conv)
+    if fname:
+        return {"saved": True, "file": fname, "count": len(conv)}
+    raise HTTPException(400, "no history to save")
 
 
 # ── 路由：今日笔记 ──────────────────────────────────
@@ -354,7 +373,7 @@ async def generate_today_note(req: TodayNoteRequest):
     ]
 
     try:
-        result = await call_llm(summary_messages)
+        result = await call_llm(summary_messages, model=BACKGROUND_MODEL)
         note_content = (result.get("reply") or "").strip()
 
         if note_content:
@@ -425,8 +444,11 @@ async def list_notes():
 
     files = []
     for f in sorted(notes_dir.glob("*.md"), reverse=True):
-        date_str = f.stem
-        is_rp = date_str.startswith("rp-") or "rp" in date_str or "session" in date_str
+        stem = f.stem
+        # 提取日期部分（处理 YYYY-MM-DD 或 YYYY-MM-DD-xxx 格式）
+        date_match = __import__("re").match(r"(\d{4}-\d{2}-\d{2})", stem)
+        date_str = date_match.group(1) if date_match else stem
+        is_rp = stem.endswith("-rp") or "rp-session" in stem
         try:
             __import__("datetime").datetime.strptime(date_str, "%Y-%m-%d")
             label = "笔记" if not is_rp else "RP"
@@ -447,11 +469,15 @@ async def list_notes():
 @router.get("/api/notes/{date_str}")
 async def get_note(date_str: str):
     """返回指定文件的内容。"""
-    note_file = MEMORY_DIR / "yanchi-notes" / f"{date_str}.md"
+    notes_dir = MEMORY_DIR / "yanchi-notes"
+    # 先试精确匹配（普通笔记），再试 -rp 后缀（RP 记录）
+    note_file = notes_dir / f"{date_str}.md"
+    if not note_file.exists():
+        note_file = notes_dir / f"{date_str}-rp.md"
     if not note_file.exists():
         raise HTTPException(404, "note not found")
     raw = note_file.read_text("utf-8")
-    is_rp = date_str.startswith("rp-") or "rp" in date_str or "session" in date_str
+    is_rp = note_file.stem.endswith("-rp")
     return {
         "date": date_str,
         "content": raw,

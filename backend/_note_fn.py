@@ -1,3 +1,6 @@
+from config import MEMORY_DIR, log, BACKGROUND_MODEL
+from chat import call_llm
+
 async def generate_today_note(req: TodayNoteRequest):
     conv = req.history or []
     if not conv:
@@ -25,7 +28,7 @@ async def generate_today_note(req: TodayNoteRequest):
     ]
 
     try:
-        result = await call_llm(summary_messages)
+        result = await call_llm(summary_messages, model=BACKGROUND_MODEL)
         note_content = (result.get("reply") or "").strip()
 
         if note_content:

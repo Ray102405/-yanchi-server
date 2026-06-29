@@ -1,0 +1,10 @@
+[
+  {
+    "id": "default",
+    "name": "现代日常",
+    "active": true,
+    "background": "",
+    "persona_override": "",
+    "tone_shift": ""
+  }
+]

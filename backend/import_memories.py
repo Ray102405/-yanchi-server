@@ -53,13 +53,13 @@ def save_index(entries):
 # ── 要导入的文件 ─────────────────────────────────
 FILES_TO_IMPORT = [
     # RP 记录
-    (CLAUDE_MEMORY_DIR / "rp" / "rp-2026-06-16.md", "2026-06-16", "RP"),
-    (CLAUDE_MEMORY_DIR / "rp" / "rp-2026-06-17.md", "2026-06-17", "RP"),
-    (CLAUDE_MEMORY_DIR / "rp" / "rp-2026-06-19.md", "2026-06-19", "RP"),
-    (CLAUDE_MEMORY_DIR / "rp" / "rp-2026-06-23.md", "2026-06-23", "RP"),
-    (CLAUDE_MEMORY_DIR / "rp" / "rp-2026-06-24.md", "2026-06-24", "RP"),
-    (CLAUDE_MEMORY_DIR / "rp" / "rp-2026-06-24-trigger-revision.md", "2026-06-24", "RP"),
-    (CLAUDE_MEMORY_DIR / "rp" / "rp-2026-06-25.md", "2026-06-25", "RP"),
+    (CLAUDE_MEMORY_DIR / "rp" / "2026-06-16-rp.md", "2026-06-16", "RP"),
+    (CLAUDE_MEMORY_DIR / "rp" / "2026-06-17-rp.md", "2026-06-17", "RP"),
+    (CLAUDE_MEMORY_DIR / "rp" / "2026-06-19-rp.md", "2026-06-19", "RP"),
+    (CLAUDE_MEMORY_DIR / "rp" / "2026-06-23-rp.md", "2026-06-23", "RP"),
+    (CLAUDE_MEMORY_DIR / "rp" / "2026-06-24-rp.md", "2026-06-24", "RP"),
+    (CLAUDE_MEMORY_DIR / "rp" / "2026-06-24_trigger-revision-rp.md", "2026-06-24", "RP"),
+    (CLAUDE_MEMORY_DIR / "rp" / "2026-06-25-rp.md", "2026-06-25", "RP"),
     # 笔记
     (DATA_DIR / "yanchi-notes" / "2026-06-25.md", "2026-06-25", "note"),
     (DATA_DIR / "yanchi-notes" / "2026-06-26.md", "2026-06-26", "note"),

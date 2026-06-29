@@ -64,32 +64,38 @@ async def get_timeline():
                 "highlighted": rel in highlights,
             })
 
-    for sid, msgs in _sys.modules['session'].sessions.items():
-        date_str = ""
-        try:
-            parts = sid.split("_")
-            if len(parts) >= 2:
-                ts = int(parts[1], 36) if parts[1] else 0
-                if ts:
-                    date_str = __import__("datetime").datetime.fromtimestamp(ts / 1000).strftime("%Y-%m-%d")
-        except Exception:
-            pass
-        title = ""
-        for m in msgs:
-            if m.get("role") == "user":
-                title = m["content"][:50]
-                break
-        cid = f"session_{sid}"
-        if cid not in seen:
-            seen.add(cid)
-            chats.append({
-                "id": f"session_{sid}",
-                "date": date_str,
-                "title": title or "会话",
-                "preview": f"共 {len(msgs)} 条消息",
-                "highlighted": False,
-                "session": True,
-            })
+    try:
+        for sid, msgs in list(_sys.modules['session'].sessions.items()):
+            date_str = ""
+            try:
+                parts = sid.split("_")
+                if len(parts) >= 2:
+                    ts = int(parts[1], 36) if parts[1] else 0
+                    if ts:
+                        date_str = __import__("datetime").datetime.fromtimestamp(ts / 1000).strftime("%Y-%m-%d")
+            except Exception:
+                pass
+            title = ""
+            try:
+                for m in msgs:
+                    if m.get("role") == "user":
+                        title = (m.get("content") or "")[:50]
+                        break
+            except Exception:
+                pass
+            cid = f"session_{sid}"
+            if cid not in seen:
+                seen.add(cid)
+                chats.append({
+                    "id": f"session_{sid}",
+                    "date": date_str,
+                    "title": title or "会话",
+                    "preview": f"共 {len(msgs)} 条消息",
+                    "highlighted": False,
+                    "session": True,
+                })
+    except Exception as e:
+        log.warning(f"  [Timeline] session iteration failed: {e}")
 
     note_sources = [
         ("yanchi-today-note.md", "📝 今日笔记"),

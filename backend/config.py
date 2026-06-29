@@ -35,9 +35,6 @@ MEMORY_INDEX_FILE = MEMORY_DIR / "yanchi-memory-index.json"
 MEMORY_ARCHIVE_DIR = MEMORY_DIR / "archive"
 PENDING_MEMORY_FILE = MEMORY_DIR / "yanchi-pending-memories.json"
 
-# Claude 记忆目录（用户可能在 Claude Code 里写今日笔记）
-_CLAUDE_MEMORY_DIR = HOME / ".claude/projects/C--Users-Ray/memory/yanchi"
-
 # ── 读取配置（环境变量优先，本地文件后备）──────────────────
 _CONFIG_DATA = {}
 if CLAUDE_CONFIG.exists():
@@ -71,6 +68,9 @@ if QWEN_API_KEY:
     log.info(f"Qwen VL: {QWEN_VL_MODEL} @ {QWEN_BASE_URL}")
 else:
     log.info("Qwen VL: not configured (图片将作为文本内容发送)")
+
+# ── 后台任务模型（记忆提取、今日笔记等固定走此模型）───────
+BACKGROUND_MODEL = "deepseek-v4-flash"
 
 # ── 运行时设置（用户通过 UI 修改，存 settings.json）─────
 SETTINGS_FILE = MEMORY_DIR / "settings.json"

@@ -8,7 +8,7 @@ import json, re
 
 from fastapi import APIRouter, HTTPException
 
-from config import log, MEMORY_DIR, MEMORY_INDEX_FILE, MEMORY_ARCHIVE_DIR, PENDING_MEMORY_FILE
+from config import log, MEMORY_DIR, MEMORY_INDEX_FILE, MEMORY_ARCHIVE_DIR, PENDING_MEMORY_FILE, BACKGROUND_MODEL
 from models import (
     RememberRequest, MemoryReviewRequest, MemoryDeleteRequest,
     MemoryBatchDeleteRequest, MemoryFavoriteRequest, MemoryEditRequest,
@@ -41,7 +41,29 @@ def _save_pending_memories(entries: list[dict]):
     PENDING_MEMORY_FILE.write_text(json.dumps(entries, ensure_ascii=False, indent=2), "utf-8")
 
 
+# ── ID 序号初始化 ─────────────────────────────────
+def _init_seq():
+    """从现有索引恢复 MEMORY_SEQ，避免重启后 ID 重复。"""
+    global MEMORY_SEQ
+    index = _load_memory_index()
+    max_id = 0
+    for e in index:
+        eid = e.get("id", "")
+        try:
+            seq = int(eid.rsplit("_", 1)[-1])
+            if seq > max_id:
+                max_id = seq
+        except (ValueError, IndexError):
+            pass
+    MEMORY_SEQ = max_id
+    log.info(f"  [OK] Memory SEQ restored to {max_id}")
+
+
+_init_seq()
+
 # ── 后台记忆提取 ──────────────────────────────────
+AUTO_APPROVE_CATEGORIES = {"喜好与习惯", "承诺与约定", "日常"}
+
 async def _do_remember(conv: list[dict]):
     try:
         log.info("  [BG] Remembering...")
@@ -78,6 +100,7 @@ async def _do_remember(conv: list[dict]):
 - 简洁，一句话一条
 - 拿不准就不记
 - 没有值得记的就只输出 "无"
+- 涉及砚迟时人称统一用「她」，不用「他」
 
 日期：{today}
 """
@@ -87,7 +110,7 @@ async def _do_remember(conv: list[dict]):
             {"role": "user", "content": f"对话：{json.dumps(conv[-20:], ensure_ascii=False)}"},
         ]
 
-        result = await call_llm(summary_messages)
+        result = await call_llm(summary_messages, model=BACKGROUND_MODEL)
         summary = (result.get("reply") or "").strip()
 
         if not summary or summary == "无":
@@ -102,6 +125,8 @@ async def _do_remember(conv: list[dict]):
         index = _load_memory_index()
         pending = _load_pending_memories()
         new_entries = []
+
+        index_added = 0
 
         for cat, content in parsed:
             if cat not in MEMORY_CATEGORIES:
@@ -124,21 +149,42 @@ async def _do_remember(conv: list[dict]):
                 continue
 
             MEMORY_SEQ += 1
-            entry = {
-                "id": f"pending_{today}_{MEMORY_SEQ:04d}",
-                "category": cat,
-                "date": today,
-                "content": content,
-                "bigrams": list(extract_bigrams(content)),
-                "status": "pending",
-                "createdAt": timestamp,
-            }
-            new_entries.append(entry)
-            pending.append(entry)
 
-        if new_entries:
-            _save_pending_memories(pending)
-            log.info(f"  [BG] Pending {len(new_entries)} memories for review")
+            if cat in AUTO_APPROVE_CATEGORIES:
+                # 低风险类别 → 直接进索引，跳过待审核
+                entry = {
+                    "id": f"mem_{today}_{MEMORY_SEQ:04d}",
+                    "category": cat,
+                    "date": today,
+                    "content": content,
+                    "bigrams": list(extract_bigrams(content)),
+                    "keywords": [],
+                    "hitCount": 0,
+                    "lastAccess": None,
+                    "createdAt": timestamp,
+                }
+                index.append(entry)
+                index_added += 1
+            else:
+                # 高风险类别 → 走待审核
+                entry = {
+                    "id": f"pending_{today}_{MEMORY_SEQ:04d}",
+                    "category": cat,
+                    "date": today,
+                    "content": content,
+                    "bigrams": list(extract_bigrams(content)),
+                    "status": "pending",
+                    "createdAt": timestamp,
+                }
+                new_entries.append(entry)
+                pending.append(entry)
+
+        if new_entries or index_added:
+            if new_entries:
+                _save_pending_memories(pending)
+            if index_added:
+                _save_memory_index(index)
+            log.info(f"  [BG] +{index_added} auto-approved, +{len(new_entries)} pending review")
         else:
             log.info("  [BG] No new memories to extract")
 
